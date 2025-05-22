@@ -1,182 +1,223 @@
 # Universal Project MCP Server
 
-A Model Context Protocol (MCP) server that provides dynamic project management capabilities with persistent path configuration.
+A comprehensive Model Context Protocol (MCP) server that provides extensive project management capabilities with persistent path configuration and advanced file operations.
 
 ## Features
 
-- **Dynamic Path Setting**: Change project root path during runtime
-- **Persistent Configuration**: Remembers your project path between sessions
-- **File Operations**: Read, search, and analyze files
-- **Directory Operations**: Browse and list directory contents
-- **Command Execution**: Run safe shell commands
-- **Project Initialization**: Create new projects of various types
-- **No CLI Arguments**: All configuration is done through MCP calls
+### Core Functionality
+- **Dynamic Path Management**: Change project root path during runtime with persistent configuration
+- **Advanced File Operations**: Complete file lifecycle management including read, write, edit, move, copy, and delete
+- **Directory Operations**: Browse, create, and manage directory structures
+- **Content Search**: Powerful file and content search capabilities
+- **Command Execution**: Safe execution of development tools and shell commands
+- **Project Initialization**: Create new projects for 20+ frameworks and technologies
+- **Line-Level Editing**: Precise file editing with line-by-line control
+
+### Advanced Capabilities
+- **Multi-encoding Support**: Handle files with various text encodings (UTF-8, UTF-16, Latin-1, CP1252)
+- **Safe File Operations**: Automatic backup creation before modifications
+- **Content Analysis**: File statistics including lines, words, characters, and MIME type detection
+- **Pattern Matching**: Advanced file search with wildcards and content filtering
+- **Development Tool Integration**: Support for 100+ development tools and package managers
+
+## Complete Method Reference
+
+### Path Management
+- `set_project_path(path)` - Set and persist project root directory
+- `get_project_path()` - Get current project root path information
+
+### Directory Operations
+- `get_structure(path, max_depth)` - Get hierarchical directory structure
+- `list_directory(path)` - List directory contents with detailed file information
+- `create_directory(dir_path, parents)` - Create directories with parent creation option
+
+### File Reading & Information
+- `read_file(file_path, start_line, end_line)` - Read files with optional line range
+- `get_file_info(file_path)` - Get comprehensive file metadata and statistics
+
+### File Creation & Writing
+- `create_file(file_path, content, encoding, create_dirs)` - Create new files
+- `write_file(file_path, content, encoding, create_dirs)` - Write/overwrite file content
+- `append_file(file_path, content, encoding, newline_before)` - Append content to files
+
+### Advanced File Editing
+- `insert_lines(file_path, line_number, content, encoding)` - Insert content at specific line
+- `replace_lines(file_path, start_line, end_line, content, encoding)` - Replace line ranges
+- `delete_lines(file_path, start_line, end_line, encoding)` - Delete specific line ranges
+
+### File Management
+- `copy_file(source_path, dest_path, create_dirs)` - Copy files or directories
+- `move_file(source_path, dest_path, create_dirs)` - Move/rename files or directories  
+- `delete_file(file_path, create_backup)` - Delete files with optional backup
+
+### Search & Discovery
+- `search_files(pattern, path, include_content, file_extensions, max_results)` - Advanced file search
+  - Pattern matching with wildcards
+  - Content-based search within files
+  - File extension filtering
+  - Configurable result limits
+
+### Command Execution
+- `execute_command(command, cwd, timeout)` - Execute development commands safely
+  - Support for 100+ development tools
+  - Working directory specification
+  - Timeout protection
+  - Comprehensive output capture
+
+### Project Initialization
+- `init_project(project_type, project_name, options)` - Initialize new projects
+  - **Frontend**: React, Next.js, Vue, Angular, Svelte, Vite
+  - **Mobile**: Flutter, React Native, Ionic, Expo
+  - **Backend**: Laravel, Symfony, Django, FastAPI, Express, NestJS
+  - **Desktop**: Electron, Tauri
+  - **Languages**: Go, Rust, .NET/C#
+  - **Static Sites**: Gatsby, Hugo, Astro
+
+## Supported Development Tools
+
+### Package Managers
+- **Node.js**: npm, yarn, pnpm, bun, npx
+- **Python**: pip, pip3, pipenv, poetry, conda, mamba, uv
+- **PHP**: composer
+- **System**: brew (macOS), apt/yum/dnf/pacman (Linux), choco/winget/scoop (Windows)
+
+### Frameworks & Build Tools
+- **Frontend**: webpack, vite, rollup, parcel, next, nuxt, vue, angular, react
+- **Mobile**: flutter, dart, ionic, cordova, capacitor, expo, react-native
+- **Build Systems**: make, cmake, ninja, bazel, gradle, maven, sbt
+
+### Version Control & DevOps
+- **VCS**: git, svn, hg, bzr
+- **Containers**: docker, docker-compose
+- **Cloud**: kubectl, helm, terraform, ansible, aws, az, gcloud, heroku, vercel, netlify
+
+### Testing & Quality
+- **Testing**: jest, mocha, cypress, playwright, selenium, puppeteer, pytest
+- **Linting**: eslint, tslint, stylelint, prettier, black, flake8, mypy, golint, clippy
+
+### Languages & Compilers
+- **JavaScript/TypeScript**: node, deno, bun, tsc, ts-node
+- **Python**: python, python3, django-admin, flask, fastapi
+- **Java/JVM**: java, javac, kotlin, mvn, gradle, spring, quarkus
+- **Go**: go, gofmt, goimports
+- **Rust**: cargo, rustc, rustup, rustfmt
+- **C/C++**: gcc, g++, clang, make, cmake
+- **.NET**: dotnet, nuget, msbuild
+- **PHP**: php, artisan, symfony, wp-cli
+- **Ruby**: ruby, gem, bundle, rails, rake
 
 ## Use Cases
 
 ### 1. Multi-Project Development
-**Scenario**: You're a developer working on multiple projects across different directories.
+Switch seamlessly between different projects without server restarts:
 
 ```
-User: "Set my project path to D:\Flutter_Projects\ecommerce_app"
-Assistant: Sets the project root and can now access all files within this Flutter project.
+User: "Set my project to D:\Flutter_Projects\ecommerce_app"
+Assistant: Updates project root and can now access all Flutter project files
 
-User: "Now switch to my React project at C:\WebProjects\my-portfolio"
-Assistant: Dynamically changes the project root without restarting the MCP server.
+User: "Now switch to my React project at C:\WebProjects\portfolio" 
+Assistant: Dynamically changes context to React project
 ```
 
-**Benefits**: Seamlessly switch between projects without manual configuration or server restarts.
-
-### 2. Project Analysis & Documentation
-**Scenario**: You need to understand or document an existing codebase.
+### 2. Comprehensive Code Analysis
+Analyze entire codebases with detailed insights:
 
 ```
-User: "Analyze this Flutter project structure and create comprehensive documentation"
+User: "Analyze this project structure and create documentation"
 Assistant: 
-1. Uses get_structure() to map the entire project
-2. Reads key files like pubspec.yaml, README.md
-3. Analyzes features/ directory structure
-4. Generates detailed documentation based on actual code
-
-User: "What dependencies does this project use?"
-Assistant: Reads pubspec.yaml and provides detailed dependency analysis
+1. Maps project hierarchy with get_structure()
+2. Reads configuration files (package.json, pubspec.yaml, etc.)
+3. Analyzes dependencies and architecture
+4. Generates comprehensive documentation
 ```
 
-**Benefits**: Automated project analysis without manual file browsing.
-
-### 3. Code Review & Refactoring
-**Scenario**: You're reviewing code quality or planning refactoring.
+### 3. Advanced File Editing
+Perform precise file modifications:
 
 ```
-User: "Find all files containing 'TODO' comments"
-Assistant: Uses search_files() with content search to locate all TODO items across the project.
+User: "Add error handling to line 45 in auth.dart"
+Assistant: Uses insert_lines() to add try-catch block at exact location
 
-User: "Show me the authentication implementation"
-Assistant: 
-1. Searches for auth-related files
-2. Reads authentication modules
-3. Provides comprehensive overview of auth flow
+User: "Replace the login function from lines 20-35 with the new implementation"
+Assistant: Uses replace_lines() to swap out specific code sections
 ```
 
-**Benefits**: Quick code exploration and pattern identification.
-
-### 4. Debugging & Problem Solving
-**Scenario**: You're troubleshooting issues in your application.
+### 4. Project Setup & Scaffolding
+Quickly initialize new projects:
 
 ```
-User: "My app is crashing on startup, help me debug"
-Assistant:
-1. Reads main.dart and related entry points
-2. Checks dependency configurations
-3. Examines error logs if present
-4. Suggests potential fixes based on code analysis
+User: "Create a new Flutter project called 'my_app'"
+Assistant: Executes flutter create and sets up complete project structure
 
-User: "Run flutter doctor to check my setup"
-Assistant: Executes command safely and provides environment analysis
+User: "Set up a React app with TypeScript"
+Assistant: Uses create-react-app with TypeScript template
 ```
 
-**Benefits**: Contextual debugging with full project awareness.
-
-### 5. Project Setup & Onboarding
-**Scenario**: Setting up a new development environment or onboarding new team members.
+### 5. Development Workflow Automation
+Streamline common development tasks:
 
 ```
-User: "Help me set up this project for development"
-Assistant:
-1. Reads setup documentation
-2. Checks for configuration files (.env, etc.)
-3. Provides step-by-step setup instructions
-4. Can execute setup commands if needed
+User: "Find all TODO comments in this project"
+Assistant: Uses search_files() with content search to locate all TODOs
 
-User: "Create a new React project for me"
-Assistant: Uses init_project() to scaffold a new React application
+User: "Run the build command and show me any errors"
+Assistant: Executes build command and analyzes output for issues
 ```
 
-**Benefits**: Automated setup guidance and project initialization.
-
-### 6. Cross-Platform Development
-**Scenario**: Working with Flutter apps that target multiple platforms.
+### 6. Code Refactoring & Maintenance
+Support large-scale code changes:
 
 ```
-User: "What platforms does this app support?"
-Assistant:
-1. Analyzes platform directories (android/, ios/, web/, etc.)
-2. Checks pubspec.yaml for platform-specific dependencies
-3. Reviews configuration files for each platform
+User: "Find all files importing the old API client"
+Assistant: Searches across project for specific import patterns
 
-User: "Show me the Android-specific configuration"
-Assistant: Navigates to android/ directory and analyzes Gradle files, manifests, etc.
+User: "Update all copyright headers in Python files"
+Assistant: Uses replace_lines() to update headers in multiple files
 ```
 
-**Benefits**: Platform-specific insights without manual directory browsing.
-
-### 7. API Integration Analysis
-**Scenario**: Understanding how external services are integrated.
+### 7. Cross-Platform Development
+Handle platform-specific configurations:
 
 ```
-User: "How does this app integrate with Supabase?"
-Assistant:
-1. Searches for Supabase-related code
-2. Reads configuration files
-3. Analyzes database models and queries
-4. Maps out the integration architecture
+User: "What platforms does this Flutter app support?"
+Assistant: Analyzes platform directories and configuration files
 
-User: "Show me all API endpoints used in this project"
-Assistant: Searches for HTTP calls, API configurations, and service integrations
+User: "Update Android permissions in the manifest"
+Assistant: Locates and modifies android/app/src/main/AndroidManifest.xml
 ```
 
-**Benefits**: Comprehensive integration mapping and analysis.
-
-### 8. Performance Optimization
-**Scenario**: Optimizing app performance and identifying bottlenecks.
+### 8. Dependency Management
+Track and manage project dependencies:
 
 ```
-User: "Find large assets and dependencies that might slow down the app"
-Assistant:
-1. Analyzes assets/ directory for large files
-2. Reviews pubspec.yaml for heavy dependencies
-3. Checks build configurations
-4. Suggests optimization strategies
+User: "What are the main dependencies in this project?"
+Assistant: Reads package.json/pubspec.yaml/requirements.txt and analyzes deps
 
-User: "Show me all image assets and their sizes"
-Assistant: Lists all images with file size information for optimization planning
+User: "Add a new dependency and update the lock file" 
+Assistant: Modifies configuration and runs package manager commands
 ```
 
-**Benefits**: Data-driven performance optimization recommendations.
-
-### 9. Team Collaboration
-**Scenario**: Coordinating with team members on shared codebases.
+### 9. Performance & Asset Optimization
+Identify optimization opportunities:
 
 ```
-User: "What has changed in the authentication module recently?"
-Assistant:
-1. Analyzes auth-related files
-2. Can check Git history if needed
-3. Identifies recent modifications
-4. Explains impact of changes
+User: "Find large assets that might slow down the app"
+Assistant: Analyzes assets directory and identifies files over size threshold
 
-User: "Prepare a handover document for the new developer"
-Assistant: Generates comprehensive project overview including architecture, setup, and key components
+User: "Show me all image files and their sizes"
+Assistant: Lists images with detailed size information for optimization
 ```
 
-**Benefits**: Enhanced team communication and knowledge transfer.
-
-### 10. Continuous Integration Setup
-**Scenario**: Setting up CI/CD pipelines and deployment automation.
+### 10. Team Collaboration & Documentation
+Facilitate team development:
 
 ```
-User: "Help me set up GitHub Actions for this Flutter project"
-Assistant:
-1. Analyzes project structure and requirements
-2. Checks existing CI configuration
-3. Suggests appropriate workflow configurations
-4. Can create or modify CI files
+User: "Generate a setup guide for new developers"
+Assistant: Creates comprehensive setup documentation based on project analysis
 
-User: "What deployment commands does this project use?"
-Assistant: Reads README and configuration files to extract deployment procedures
+User: "What has changed in the authentication module?"
+Assistant: Analyzes auth-related files and explains recent modifications
 ```
-
-**Benefits**: Automated CI/CD setup based on project analysis.
 
 ## Installation
 
@@ -185,14 +226,17 @@ cd coding-mcp-server
 uv sync
 ```
 
-## Claude Config
+## Claude Configuration
+
+Add to your Claude desktop configuration:
+
 ```json
 {
   "mcpServers": {
     "universal-project": {
       "command": "uv",
-      "args": ["run", "python", "D:\\path\\to\\your_project\\server_mcp.py"],
-      "cwd": "D:\\path\\to\\your_project\\coding-mcp-server"
+      "args": ["run", "python", "D:\\path\\to\\your\\coding-mcp-server\\server_mcp.py"],
+      "cwd": "D:\\path\\to\\your\\coding-mcp-server"
     }
   }
 }
@@ -200,11 +244,25 @@ uv sync
 
 ## Key Advantages
 
-1. **Context Awareness**: Full understanding of your project structure and dependencies
-2. **Dynamic Flexibility**: Switch between projects seamlessly
-3. **Persistent Memory**: Remembers configurations between sessions
-4. **Safe Operations**: Controlled command execution with safety restrictions
-5. **Language Agnostic**: Works with any programming language or framework
-6. **No Manual Setup**: Configure everything through natural language commands
+### Technical Capabilities
+- **Comprehensive File Operations**: Complete CRUD operations with advanced editing features
+- **Safe Command Execution**: Whitelist-based security with timeout protection  
+- **Multi-encoding Support**: Handle diverse file formats and encodings
+- **Persistent Configuration**: Remember settings between sessions
+- **Atomic Operations**: Backup creation before destructive operations
 
-This MCP server transforms how you interact with your development projects, making complex project management tasks as simple as having a conversation.
+### Developer Experience
+- **Context Awareness**: Full understanding of project structure and dependencies
+- **Dynamic Flexibility**: Switch between projects seamlessly during conversations
+- **Natural Language Interface**: Configure everything through conversational commands
+- **Language Agnostic**: Works with any programming language or framework
+- **Rich Feedback**: Detailed operation results and error reporting
+
+### Safety & Reliability
+- **Automatic Backups**: Files backed up before modifications
+- **Command Whitelisting**: Only safe development commands allowed
+- **Path Validation**: Ensures operations stay within project boundaries
+- **Error Handling**: Comprehensive error reporting with recovery suggestions
+- **Resource Limits**: File size and operation timeouts prevent abuse
+
+This MCP server transforms project management from manual file operations into intelligent, context-aware development assistance that understands your codebase and helps you work more efficiently.

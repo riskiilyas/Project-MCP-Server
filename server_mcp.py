@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import logging
+import shutil
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 import mimetypes
@@ -193,6 +194,380 @@ class UniversalProjectMCP:
         except Exception as e:
             return {"error": f"Error reading file: {str(e)}"}
 
+    def write_file(self, file_path: str, content: str, encoding: str = "utf-8", create_dirs: bool = True) -> Dict[str, Any]:
+        """Write content to file (overwrites existing content)"""
+        try:
+            full_path = self.project_root / file_path
+            
+            # Create parent directories if needed
+            if create_dirs:
+                full_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Backup existing file if it exists
+            backup_path = None
+            if full_path.exists():
+                backup_path = str(full_path) + ".backup"
+                shutil.copy2(full_path, backup_path)
+            
+            # Write the file
+            with open(full_path, 'w', encoding=encoding) as f:
+                f.write(content)
+            
+            # Get file info
+            stat = full_path.stat()
+            lines = content.splitlines()
+            
+            return {
+                "success": True,
+                "file_path": file_path,
+                "full_path": str(full_path),
+                "size": stat.st_size,
+                "lines": len(lines),
+                "encoding": encoding,
+                "backup_created": backup_path is not None,
+                "backup_path": backup_path
+            }
+            
+        except Exception as e:
+            return {"error": f"Error writing file: {str(e)}"}
+
+    def append_file(self, file_path: str, content: str, encoding: str = "utf-8", newline_before: bool = True) -> Dict[str, Any]:
+        """Append content to the end of file"""
+        try:
+            full_path = self.project_root / file_path
+            
+            if not full_path.exists():
+                return {"error": f"File not found: {file_path}"}
+            
+            # Read current content to get line count
+            with open(full_path, 'r', encoding=encoding) as f:
+                current_content = f.read()
+            
+            current_lines = len(current_content.splitlines())
+            
+            # Append content
+            with open(full_path, 'a', encoding=encoding) as f:
+                if newline_before and current_content and not current_content.endswith('\n'):
+                    f.write('\n')
+                f.write(content)
+            
+            # Get updated file info
+            stat = full_path.stat()
+            new_lines = len(content.splitlines())
+            
+            return {
+                "success": True,
+                "file_path": file_path,
+                "full_path": str(full_path),
+                "size": stat.st_size,
+                "lines_added": new_lines,
+                "total_lines": current_lines + new_lines,
+                "encoding": encoding
+            }
+            
+        except Exception as e:
+            return {"error": f"Error appending to file: {str(e)}"}
+
+    def insert_lines(self, file_path: str, line_number: int, content: str, encoding: str = "utf-8") -> Dict[str, Any]:
+        """Insert content at specific line number"""
+        try:
+            full_path = self.project_root / file_path
+            
+            if not full_path.exists():
+                return {"error": f"File not found: {file_path}"}
+            
+            # Read current content
+            with open(full_path, 'r', encoding=encoding) as f:
+                lines = f.readlines()
+            
+            total_lines = len(lines)
+            
+            if line_number < 1 or line_number > total_lines + 1:
+                return {"error": f"Invalid line number: {line_number}. File has {total_lines} lines."}
+            
+            # Insert content
+            insert_lines = content.splitlines(keepends=True)
+            if insert_lines and not insert_lines[-1].endswith('\n'):
+                insert_lines[-1] += '\n'
+            
+            # Insert at the specified position
+            lines[line_number-1:line_number-1] = insert_lines
+            
+            # Write back to file
+            with open(full_path, 'w', encoding=encoding) as f:
+                f.writelines(lines)
+            
+            stat = full_path.stat()
+            
+            return {
+                "success": True,
+                "file_path": file_path,
+                "full_path": str(full_path),
+                "size": stat.st_size,
+                "lines_inserted": len(insert_lines),
+                "total_lines": len(lines),
+                "inserted_at_line": line_number,
+                "encoding": encoding
+            }
+            
+        except Exception as e:
+            return {"error": f"Error inserting lines: {str(e)}"}
+
+    def replace_lines(self, file_path: str, start_line: int, end_line: int, content: str, encoding: str = "utf-8") -> Dict[str, Any]:
+        """Replace lines in a specific range with new content"""
+        try:
+            full_path = self.project_root / file_path
+            
+            if not full_path.exists():
+                return {"error": f"File not found: {file_path}"}
+            
+            # Read current content
+            with open(full_path, 'r', encoding=encoding) as f:
+                lines = f.readlines()
+            
+            total_lines = len(lines)
+            
+            if start_line < 1 or end_line < start_line or start_line > total_lines:
+                return {"error": f"Invalid line range: {start_line}-{end_line}. File has {total_lines} lines."}
+            
+            # Adjust end_line if it exceeds file length
+            end_line = min(end_line, total_lines)
+            
+            # Prepare replacement content
+            replace_lines = content.splitlines(keepends=True)
+            if replace_lines and not replace_lines[-1].endswith('\n'):
+                replace_lines[-1] += '\n'
+            
+            # Replace the range
+            lines[start_line-1:end_line] = replace_lines
+            
+            # Write back to file
+            with open(full_path, 'w', encoding=encoding) as f:
+                f.writelines(lines)
+            
+            stat = full_path.stat()
+            
+            return {
+                "success": True,
+                "file_path": file_path,
+                "full_path": str(full_path),
+                "size": stat.st_size,
+                "lines_replaced": end_line - start_line + 1,
+                "new_lines": len(replace_lines),
+                "total_lines": len(lines),
+                "replaced_range": f"{start_line}-{end_line}",
+                "encoding": encoding
+            }
+            
+        except Exception as e:
+            return {"error": f"Error replacing lines: {str(e)}"}
+
+    def delete_lines(self, file_path: str, start_line: int, end_line: int, encoding: str = "utf-8") -> Dict[str, Any]:
+        """Delete lines in a specific range"""
+        try:
+            full_path = self.project_root / file_path
+            
+            if not full_path.exists():
+                return {"error": f"File not found: {file_path}"}
+            
+            # Read current content
+            with open(full_path, 'r', encoding=encoding) as f:
+                lines = f.readlines()
+            
+            total_lines = len(lines)
+            
+            if start_line < 1 or end_line < start_line or start_line > total_lines:
+                return {"error": f"Invalid line range: {start_line}-{end_line}. File has {total_lines} lines."}
+            
+            # Adjust end_line if it exceeds file length
+            end_line = min(end_line, total_lines)
+            
+            deleted_lines = end_line - start_line + 1
+            
+            # Delete the range
+            del lines[start_line-1:end_line]
+            
+            # Write back to file
+            with open(full_path, 'w', encoding=encoding) as f:
+                f.writelines(lines)
+            
+            stat = full_path.stat()
+            
+            return {
+                "success": True,
+                "file_path": file_path,
+                "full_path": str(full_path),
+                "size": stat.st_size,
+                "lines_deleted": deleted_lines,
+                "total_lines": len(lines),
+                "deleted_range": f"{start_line}-{end_line}",
+                "encoding": encoding
+            }
+            
+        except Exception as e:
+            return {"error": f"Error deleting lines: {str(e)}"}
+
+    def create_file(self, file_path: str, content: str = "", encoding: str = "utf-8", create_dirs: bool = True) -> Dict[str, Any]:
+        """Create a new file with optional content"""
+        try:
+            full_path = self.project_root / file_path
+            
+            if full_path.exists():
+                return {"error": f"File already exists: {file_path}"}
+            
+            # Create parent directories if needed
+            if create_dirs:
+                full_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Create the file
+            with open(full_path, 'w', encoding=encoding) as f:
+                f.write(content)
+            
+            stat = full_path.stat()
+            lines = content.splitlines() if content else []
+            
+            return {
+                "success": True,
+                "file_path": file_path,
+                "full_path": str(full_path),
+                "size": stat.st_size,
+                "lines": len(lines),
+                "encoding": encoding,
+                "created": True
+            }
+            
+        except Exception as e:
+            return {"error": f"Error creating file: {str(e)}"}
+
+    def create_directory(self, dir_path: str, parents: bool = True) -> Dict[str, Any]:
+        """Create a new directory"""
+        try:
+            full_path = self.project_root / dir_path
+            
+            if full_path.exists():
+                if full_path.is_dir():
+                    return {"error": f"Directory already exists: {dir_path}"}
+                else:
+                    return {"error": f"Path exists but is not a directory: {dir_path}"}
+            
+            # Create directory
+            full_path.mkdir(parents=parents, exist_ok=False)
+            
+            return {
+                "success": True,
+                "directory_path": dir_path,
+                "full_path": str(full_path),
+                "created": True
+            }
+            
+        except Exception as e:
+            return {"error": f"Error creating directory: {str(e)}"}
+
+    def delete_file(self, file_path: str, create_backup: bool = True) -> Dict[str, Any]:
+        """Delete a file with optional backup"""
+        try:
+            full_path = self.project_root / file_path
+            
+            if not full_path.exists():
+                return {"error": f"File not found: {file_path}"}
+            
+            if not full_path.is_file():
+                return {"error": f"Path is not a file: {file_path}"}
+            
+            # Create backup if requested
+            backup_path = None
+            if create_backup:
+                backup_path = str(full_path) + ".deleted_backup"
+                shutil.copy2(full_path, backup_path)
+            
+            # Get file info before deletion
+            stat = full_path.stat()
+            file_size = stat.st_size
+            
+            # Delete the file
+            full_path.unlink()
+            
+            return {
+                "success": True,
+                "file_path": file_path,
+                "full_path": str(full_path),
+                "size": file_size,
+                "deleted": True,
+                "backup_created": backup_path is not None,
+                "backup_path": backup_path
+            }
+            
+        except Exception as e:
+            return {"error": f"Error deleting file: {str(e)}"}
+
+    def move_file(self, source_path: str, dest_path: str, create_dirs: bool = True) -> Dict[str, Any]:
+        """Move/rename a file or directory"""
+        try:
+            source_full = self.project_root / source_path
+            dest_full = self.project_root / dest_path
+            
+            if not source_full.exists():
+                return {"error": f"Source not found: {source_path}"}
+            
+            if dest_full.exists():
+                return {"error": f"Destination already exists: {dest_path}"}
+            
+            # Create parent directories if needed
+            if create_dirs:
+                dest_full.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Move the file/directory
+            shutil.move(str(source_full), str(dest_full))
+            
+            return {
+                "success": True,
+                "source_path": source_path,
+                "dest_path": dest_path,
+                "source_full_path": str(source_full),
+                "dest_full_path": str(dest_full),
+                "moved": True
+            }
+            
+        except Exception as e:
+            return {"error": f"Error moving file: {str(e)}"}
+
+    def copy_file(self, source_path: str, dest_path: str, create_dirs: bool = True) -> Dict[str, Any]:
+        """Copy a file or directory"""
+        try:
+            source_full = self.project_root / source_path
+            dest_full = self.project_root / dest_path
+            
+            if not source_full.exists():
+                return {"error": f"Source not found: {source_path}"}
+            
+            if dest_full.exists():
+                return {"error": f"Destination already exists: {dest_path}"}
+            
+            # Create parent directories if needed
+            if create_dirs:
+                dest_full.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Copy file or directory
+            if source_full.is_file():
+                shutil.copy2(source_full, dest_full)
+            else:
+                shutil.copytree(source_full, dest_full)
+            
+            stat = dest_full.stat()
+            
+            return {
+                "success": True,
+                "source_path": source_path,
+                "dest_path": dest_path,
+                "source_full_path": str(source_full),
+                "dest_full_path": str(dest_full),
+                "size": stat.st_size if dest_full.is_file() else None,
+                "copied": True
+            }
+            
+        except Exception as e:
+            return {"error": f"Error copying file: {str(e)}"}
+
     def search_files(self, pattern: str = "*", path: str = "", include_content: bool = False, 
                     file_extensions: Optional[List[str]] = None, max_results: int = 100) -> List[Dict[str, Any]]:
         """Search for files by pattern"""
@@ -367,10 +742,6 @@ class UniversalProjectMCP:
             
             # Comprehensive safe commands untuk berbagai development stacks
             safe_commands = {
-                # System commands (Still Unstable for Claude)
-                # 'ls', 'dir', 'pwd', 'cd', 'mkdir', 'rmdir', 'rm', 'cp', 'mv', 'cat', 'head', 'tail', 
-                # 'wc', 'find', 'grep', 'which', 'where', 'echo', 'type', 'tree', 'sort', 'uniq',
-                
                 # Package managers
                 'npm', 'yarn', 'pnpm', 'bun', 'npx', 'pip', 'pip3', 'pipenv', 'poetry', 
                 'conda', 'mamba', 'uv', 'composer', 'brew', 'apt', 'yum', 'dnf', 'pacman',
@@ -413,8 +784,8 @@ class UniversalProjectMCP:
                 
                 # .NET & C#
                 'dotnet', 'nuget', 'msbuild', 'csc',
-                
-                # C/C++
+                    
+                    # C/C++
                 'gcc', 'g++', 'clang', 'clang++', 'make', 'cmake', 'ninja', 'vcpkg', 'conan',
                 
                 # Database
@@ -570,7 +941,7 @@ class UniversalProjectMCP:
             return {"error": f"Error initializing project: {str(e)}"}
 
 
-# MCP Server JSON-RPC Handler
+    # MCP Server JSON-RPC Handler
 def main():
     logging.info("Universal Project MCP Server starting...")
     mcp = UniversalProjectMCP()
@@ -649,6 +1020,141 @@ def main():
                                     "end_line": {"type": "integer", "description": "End line number"}
                                 },
                                 "required": ["file_path"]
+                            }
+                        },
+                        {
+                            "name": "write_file",
+                            "description": "Write content to file (overwrites existing content)",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "file_path": {"type": "string", "description": "Path to file relative to project root"},
+                                    "content": {"type": "string", "description": "Content to write to file"},
+                                    "encoding": {"type": "string", "description": "File encoding", "default": "utf-8"},
+                                    "create_dirs": {"type": "boolean", "description": "Create parent directories if needed", "default": True}
+                                },
+                                "required": ["file_path", "content"]
+                            }
+                        },
+                        {
+                            "name": "append_file",
+                            "description": "Append content to the end of file",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "file_path": {"type": "string", "description": "Path to file relative to project root"},
+                                    "content": {"type": "string", "description": "Content to append to file"},
+                                    "encoding": {"type": "string", "description": "File encoding", "default": "utf-8"},
+                                    "newline_before": {"type": "boolean", "description": "Add newline before content", "default": True}
+                                },
+                                "required": ["file_path", "content"]
+                            }
+                        },
+                        {
+                            "name": "insert_lines",
+                            "description": "Insert content at specific line number",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "file_path": {"type": "string", "description": "Path to file relative to project root"},
+                                    "line_number": {"type": "integer", "description": "Line number where to insert (1-based)"},
+                                    "content": {"type": "string", "description": "Content to insert"},
+                                    "encoding": {"type": "string", "description": "File encoding", "default": "utf-8"}
+                                },
+                                "required": ["file_path", "line_number", "content"]
+                            }
+                        },
+                        {
+                            "name": "replace_lines",
+                            "description": "Replace lines in a specific range with new content",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "file_path": {"type": "string", "description": "Path to file relative to project root"},
+                                    "start_line": {"type": "integer", "description": "Start line number (1-based)"},
+                                    "end_line": {"type": "integer", "description": "End line number (1-based)"},
+                                    "content": {"type": "string", "description": "New content to replace with"},
+                                    "encoding": {"type": "string", "description": "File encoding", "default": "utf-8"}
+                                },
+                                "required": ["file_path", "start_line", "end_line", "content"]
+                            }
+                        },
+                        {
+                            "name": "delete_lines",
+                            "description": "Delete lines in a specific range",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "file_path": {"type": "string", "description": "Path to file relative to project root"},
+                                    "start_line": {"type": "integer", "description": "Start line number (1-based)"},
+                                    "end_line": {"type": "integer", "description": "End line number (1-based)"},
+                                    "encoding": {"type": "string", "description": "File encoding", "default": "utf-8"}
+                                },
+                                "required": ["file_path", "start_line", "end_line"]
+                            }
+                        },
+                        {
+                            "name": "create_file",
+                            "description": "Create a new file with optional content",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "file_path": {"type": "string", "description": "Path to file relative to project root"},
+                                    "content": {"type": "string", "description": "Initial content for the file", "default": ""},
+                                    "encoding": {"type": "string", "description": "File encoding", "default": "utf-8"},
+                                    "create_dirs": {"type": "boolean", "description": "Create parent directories if needed", "default": True}
+                                },
+                                "required": ["file_path"]
+                            }
+                        },
+                        {
+                            "name": "create_directory",
+                            "description": "Create a new directory",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "dir_path": {"type": "string", "description": "Path to directory relative to project root"},
+                                    "parents": {"type": "boolean", "description": "Create parent directories if needed", "default": True}
+                                },
+                                "required": ["dir_path"]
+                            }
+                        },
+                        {
+                            "name": "delete_file",
+                            "description": "Delete a file with optional backup",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "file_path": {"type": "string", "description": "Path to file relative to project root"},
+                                    "create_backup": {"type": "boolean", "description": "Create backup before deletion", "default": True}
+                                },
+                                "required": ["file_path"]
+                            }
+                        },
+                        {
+                            "name": "move_file",
+                            "description": "Move/rename a file or directory",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "source_path": {"type": "string", "description": "Source path relative to project root"},
+                                    "dest_path": {"type": "string", "description": "Destination path relative to project root"},
+                                    "create_dirs": {"type": "boolean", "description": "Create parent directories if needed", "default": True}
+                                },
+                                "required": ["source_path", "dest_path"]
+                            }
+                        },
+                        {
+                            "name": "copy_file",
+                            "description": "Copy a file or directory",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "source_path": {"type": "string", "description": "Source path relative to project root"},
+                                    "dest_path": {"type": "string", "description": "Destination path relative to project root"},
+                                    "create_dirs": {"type": "boolean", "description": "Create parent directories if needed", "default": True}
+                                },
+                                "required": ["source_path", "dest_path"]
                             }
                         },
                         {
@@ -734,6 +1240,26 @@ def main():
                     tool_result = mcp.get_structure(**arguments)
                 elif tool_name == "read_file":
                     tool_result = mcp.read_file(**arguments)
+                elif tool_name == "write_file":
+                    tool_result = mcp.write_file(**arguments)
+                elif tool_name == "append_file":
+                    tool_result = mcp.append_file(**arguments)
+                elif tool_name == "insert_lines":
+                    tool_result = mcp.insert_lines(**arguments)
+                elif tool_name == "replace_lines":
+                    tool_result = mcp.replace_lines(**arguments)
+                elif tool_name == "delete_lines":
+                    tool_result = mcp.delete_lines(**arguments)
+                elif tool_name == "create_file":
+                    tool_result = mcp.create_file(**arguments)
+                elif tool_name == "create_directory":
+                    tool_result = mcp.create_directory(**arguments)
+                elif tool_name == "delete_file":
+                    tool_result = mcp.delete_file(**arguments)
+                elif tool_name == "move_file":
+                    tool_result = mcp.move_file(**arguments)
+                elif tool_name == "copy_file":
+                    tool_result = mcp.copy_file(**arguments)
                 elif tool_name == "search_files":
                     tool_result = mcp.search_files(**arguments)
                 elif tool_name == "list_directory":
