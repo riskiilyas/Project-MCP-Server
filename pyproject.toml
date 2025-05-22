@@ -1,0 +1,20 @@
+[project]
+name = "universal-project-mcp"
+version = "1.0.0"
+description = "Universal MCP server for project management"
+requires-python = ">=3.11"
+dependencies = []
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+universal-mcp = "server_mcp:main"
+
+[tool.setuptools]
+py-modules = ["server_mcp"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
