@@ -4,12 +4,13 @@ A simple MCP server that lets Claude connect to your entire project without cont
 
 ## Why This Exists
 
-The main purpose is to give Claude full access to understand your project structure without hitting context limits. Instead of copying/pasting code snippets, Claude can:
+The main purpose is to give Claude full access to understand your project structure without hitting context limits. In other words, use claude as efficient as possible. Instead of copying/pasting code snippets, Claude can:
 
 - See your entire project structure at once
 - Read any file it needs to understand your code
 - Search through multiple files to find what it's looking for
 - Get the complete picture of how your project is organized
+- Instantly analyze project type, dependencies, and key files
 
 ## What Happened to File Editing?
 
@@ -23,6 +24,11 @@ Now it's read-only, which works much better - Claude can understand everything b
 - `set_project_path(path)` - Point to your project directory
 - `get_project_path()` - See current project path
 
+### Smart Project Analysis
+- `get_project_summary()` - Get complete project overview (type, README files, stats, complexity)
+- `get_dependencies()` - Analyze all project dependencies from config files
+- `find_entry_points()` - Find main files, configs, routes, and other important files
+
 ### Exploring Your Project
 - `get_structure(path, max_depth)` - Get the whole directory tree
 - `list_directory(path)` - List files in a specific folder
@@ -35,9 +41,9 @@ Now it's read-only, which works much better - Claude can understand everything b
 ## How to Use It
 
 1. **Set your project once**: Tell Claude where your project is located
-2. **Let Claude explore**: It can see your entire structure and read whatever files it needs
-3. **Get better help**: Claude understands your full codebase context instead of just snippets
-4. **You implement changes**: Claude gives suggestions, you make the actual changes
+2. **Let Claude analyze instantly**: New smart methods give Claude immediate project understanding
+3. **Get targeted help**: Claude focuses on the right files and understands your tech stack
+4. **You implement changes**: Claude gives precise suggestions based on full context
 
 ## Installation
 
@@ -62,25 +68,32 @@ Add this to your Claude desktop app configuration:
 }
 ```
 
-## Example Usage
-
+## Example Usage - Before and After
 ```
 You: "Set my project to D:\MyFlutterApp"
-Claude: "✓ Project set to D:\MyFlutterApp"
+Claude: *calls get_project_summary()*
+"✓ This is a Flutter project with 156 files, medium complexity. 
+Found README.md at root. Main directories: lib/, android/, ios/"
 
-You: "What's the structure of this project?"
-Claude: *reads entire project structure*
-"This is a Flutter project with lib/screens/, lib/models/, etc..."
+Claude: *calls get_dependencies()*  
+"Uses 23 dependencies including http, provider, flutter_bloc"
 
-You: "Find all files that handle user authentication"
-Claude: *searches through files*
-"I found authentication logic in lib/services/auth_service.dart, lib/screens/login_screen.dart..."
+Claude: *calls find_entry_points()*
+"Main entry: lib/main.dart, Config: pubspec.yaml"
 
-You: "Show me the login function"
-Claude: *reads the specific file*
-"Here's the login function from auth_service.dart: ..."
+Claude: *reads README.md*
+"I can see this is an e-commerce app with user authentication..."
+
+Result: Claude understands your entire project in seconds!
 ```
 
-The key benefit: Claude sees your ENTIRE project context, not just the small pieces you paste to it.
+## Key Benefits
+
+- **No Context Limits**: Claude sees your whole project without token restrictions
+- **Instant Analysis**: New methods give immediate project understanding
+- **Smart Focus**: Claude knows which files are important to read
+- **Tech Stack Aware**: Understands your dependencies and project type
+- **Documentation Aware**: Finds and reads your README/docs automatically
+- **Safe & Read-Only**: No accidental file changes or command execution
 
 ---
