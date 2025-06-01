@@ -9,6 +9,7 @@ The main purpose is to give Claude full access to understand your project struct
 - See your entire project structure at once
 - Read any file it needs to understand your code
 - Search through multiple files to find what it's looking for
+- Search the files that contains specific keywords
 - Get the complete picture of how your project is organized
 - Instantly analyze project type, dependencies, and key files
 

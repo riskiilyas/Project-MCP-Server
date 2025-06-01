@@ -268,6 +268,196 @@ class UniversalProjectMCP:
         except Exception as e:
             return [{"error": f"Search failed: {str(e)}"}]
 
+    def search_in_files(self, keyword: str, path: str = "", file_extensions: Optional[List[str]] = None, 
+                    max_results: int = 50, case_sensitive: bool = False, 
+                    max_matches_per_file: int = 10) -> Dict[str, Any]:
+        """Search for keyword within file contents and return matching files with context"""
+        import fnmatch
+        
+        search_path = self.project_root / path if path else self.project_root
+        results = {
+            "keyword": keyword,
+            "search_path": str(search_path.relative_to(self.project_root)) if path else "",
+            "case_sensitive": case_sensitive,
+            "total_files_searched": 0,
+            "files_with_matches": 0,
+            "matches": []
+        }
+        
+        if not keyword.strip():
+            return {"error": "Keyword cannot be empty"}
+        
+        # Prepare keyword for search
+        search_keyword = keyword if case_sensitive else keyword.lower()
+        
+        try:
+            for root, dirs, files in os.walk(search_path):
+                # Skip common build/cache directories
+                dirs[:] = [d for d in dirs if d not in {
+                    '.git', 'node_modules', '__pycache__', '.venv', 'venv', 
+                    'target', 'build', 'dist', '.cache', 'tmp', 'temp', '.next',
+                    'coverage', '.nyc_output', 'logs', '.logs'
+                }]
+                
+                for file in files:
+                    if len(results["matches"]) >= max_results:
+                        break
+                        
+                    file_path = Path(root) / file
+                    relative_path = file_path.relative_to(self.project_root)
+                    
+                    # Filter by extension if specified
+                    if file_extensions:
+                        if not any(file_path.suffix.lower() == ext.lower() if ext.startswith('.') 
+                                else file_path.suffix.lower() == f'.{ext.lower()}' 
+                                for ext in file_extensions):
+                            continue
+                    
+                    # Skip binary files and very large files
+                    try:
+                        stat = file_path.stat()
+                        if stat.st_size > 10 * 1024 * 1024:  # Skip files larger than 10MB
+                            continue
+                            
+                        # Check if file might be binary
+                        if self._is_likely_binary_file(file_path):
+                            continue
+                            
+                    except Exception:
+                        continue
+                    
+                    results["total_files_searched"] += 1
+                    
+                    # Search in file content
+                    try:
+                        encodings_to_try = ['utf-8', 'utf-16', 'latin-1', 'cp1252']
+                        content = None
+                        used_encoding = None
+                        
+                        for enc in encodings_to_try:
+                            try:
+                                with open(file_path, 'r', encoding=enc) as f:
+                                    content = f.read()
+                                used_encoding = enc
+                                break
+                            except UnicodeDecodeError:
+                                continue
+                            except Exception:
+                                break
+                        
+                        if content is None:
+                            continue
+                        
+                        # Search for keyword
+                        search_content = content if case_sensitive else content.lower()
+                        
+                        if search_keyword in search_content:
+                            results["files_with_matches"] += 1
+                            
+                            # Find all matches with line numbers and context
+                            lines = content.split('\n')
+                            matches_in_file = []
+                            
+                            for line_num, line in enumerate(lines, 1):
+                                search_line = line if case_sensitive else line.lower()
+                                
+                                if search_keyword in search_line:
+                                    # Find all occurrences in this line
+                                    start = 0
+                                    while True:
+                                        pos = search_line.find(search_keyword, start)
+                                        if pos == -1:
+                                            break
+                                        
+                                        # Get context around the match
+                                        context_start = max(0, pos - 50)
+                                        context_end = min(len(line), pos + len(keyword) + 50)
+                                        context = line[context_start:context_end]
+                                        
+                                        # Highlight the match
+                                        if not case_sensitive:
+                                            # Find the actual match in original case
+                                            actual_match_start = line.lower().find(search_keyword, pos)
+                                            if actual_match_start != -1:
+                                                actual_match = line[actual_match_start:actual_match_start + len(keyword)]
+                                            else:
+                                                actual_match = keyword
+                                        else:
+                                            actual_match = keyword
+                                        
+                                        matches_in_file.append({
+                                            "line_number": line_num,
+                                            "column": pos + 1,
+                                            "line_content": line.strip(),
+                                            "context": context,
+                                            "matched_text": actual_match
+                                        })
+                                        
+                                        start = pos + 1
+                                        
+                                        if len(matches_in_file) >= max_matches_per_file:
+                                            break
+                                    
+                                    if len(matches_in_file) >= max_matches_per_file:
+                                        break
+                            
+                            if matches_in_file:
+                                results["matches"].append({
+                                    "file_path": str(relative_path),
+                                    "file_name": file,
+                                    "file_size": stat.st_size,
+                                    "encoding": used_encoding,
+                                    "match_count": len(matches_in_file),
+                                    "matches": matches_in_file
+                                })
+                    
+                    except Exception as e:
+                        logging.debug(f"Error searching in file {file_path}: {e}")
+                        continue
+                
+                if len(results["matches"]) >= max_results:
+                    break
+            
+            # Sort results by relevance (number of matches, then by file name)
+            results["matches"].sort(key=lambda x: (-x["match_count"], x["file_name"]))
+            
+            return results
+            
+        except Exception as e:
+            return {"error": f"Search failed: {str(e)}"}
+
+    def _is_likely_binary_file(self, file_path: Path) -> bool:
+        """Check if file is likely binary by extension and content sampling"""
+        # Check extension first
+        binary_extensions = {
+            '.exe', '.dll', '.so', '.dylib', '.bin', '.dat', '.db', '.sqlite',
+            '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.ico', '.tiff', '.webp',
+            '.mp3', '.mp4', '.avi', '.mov', '.wav', '.flac', '.ogg',
+            '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+            '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2',
+            '.woff', '.woff2', '.ttf', '.otf', '.eot'
+        }
+        
+        if file_path.suffix.lower() in binary_extensions:
+            return True
+        
+        # Sample first few bytes to check for binary content
+        try:
+            with open(file_path, 'rb') as f:
+                sample = f.read(512)
+                # Check for null bytes (common in binary files)
+                if b'\x00' in sample:
+                    return True
+                # Check for high ratio of non-printable characters
+                printable_chars = sum(1 for byte in sample if 32 <= byte < 127 or byte in [9, 10, 13])
+                if len(sample) > 0 and printable_chars / len(sample) < 0.7:
+                    return True
+        except Exception:
+            return True
+        
+        return False
+
+
     def list_directory(self, path: str = "") -> Dict[str, Any]:
         """List directory contents (flat view)"""
         try:
@@ -1113,7 +1303,23 @@ def main():
                                 "type": "object",
                                 "properties": {}
                             }
-                        }
+                        },
+                        {
+                            "name": "search_in_files", 
+                            "description": "Search for keyword within file contents and return matching files with context",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "keyword": {"type": "string", "description": "Keyword to search for"},
+                                    "path": {"type": "string", "description": "Path to search in (relative to project root)"},
+                                    "file_extensions": {"type": "array", "items": {"type": "string"}, "description": "Filter by file extensions (e.g. ['.py', '.js'])"},
+                                    "max_results": {"type": "integer", "description": "Maximum number of files to return", "default": 50},
+                                    "case_sensitive": {"type": "boolean", "description": "Whether search should be case sensitive", "default": False},
+                                    "max_matches_per_file": {"type": "integer", "description": "Maximum matches to show per file", "default": 10}
+                                },
+                                "required": ["keyword"]
+                            }
+                        },
                     ]
                 }
             elif method == "tools/call":
@@ -1131,6 +1337,8 @@ def main():
                     tool_result = mcp.read_file(**arguments)
                 elif tool_name == "search_files":
                     tool_result = mcp.search_files(**arguments)
+                elif tool_name == "search_in_files":
+                    tool_result = mcp.search_in_files(**arguments)
                 elif tool_name == "list_directory":
                     tool_result = mcp.list_directory(**arguments)
                 elif tool_name == "get_file_info":
